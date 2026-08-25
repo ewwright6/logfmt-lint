@@ -104,8 +104,10 @@ func parseQuoted(line string, start int) (string, int, error) {
 }
 
 // Validate checks a parsed record for problems that aren't syntax errors
-// on their own, such as a key appearing more than once.
-func Validate(rec Record) []error {
+// on their own: a key appearing more than once, or one of required
+// missing entirely. required may be nil or empty, in which case only the
+// duplicate-key check runs.
+func Validate(rec Record, required []string) []error {
 	seen := make(map[string]bool, len(rec.Fields))
 	var errs []error
 	for _, f := range rec.Fields {
@@ -115,5 +117,12 @@ func Validate(rec Record) []error {
 		}
 		seen[f.Key] = true
 	}
+
+	for _, key := range required {
+		if !seen[key] {
+			errs = append(errs, fmt.Errorf("missing required key %q", key))
+		}
+	}
+
 	return errs
 }

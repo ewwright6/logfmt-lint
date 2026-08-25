@@ -2,26 +2,38 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// run processes each source in turn and returns the process exit code:
-// 0 if every line parsed and validated cleanly, 1 otherwise.
+// run parses flags, then processes each source in turn and returns the
+// process exit code: 0 if every line parsed and validated cleanly, 1
+// otherwise, 2 if the arguments themselves couldn't be parsed.
 func run(args []string, stdout, stderr io.Writer) int {
-	sources := args
+	fs := flag.NewFlagSet("logfmt-lint", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	requireFlag := fs.String("require", "", "comma-separated list of keys that must be present in every line, e.g. level,msg")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	required := splitRequired(*requireFlag)
+
+	sources := fs.Args()
 	if len(sources) == 0 {
 		sources = []string{"-"}
 	}
 
 	hadError := false
 	for _, src := range sources {
-		if processSource(src, stdout, stderr) {
+		if processSource(src, required, stdout, stderr) {
 			hadError = true
 		}
 	}
@@ -32,9 +44,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// splitRequired turns a comma-separated flag value into a list of trimmed,
+// non-empty key names.
+func splitRequired(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var keys []string
+	for _, part := range strings.Split(s, ",") {
+		key := strings.TrimSpace(part)
+		if key != "" {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
-func processSource(src string, stdout, stderr io.Writer) bool {
+func processSource(src string, required []string, stdout, stderr io.Writer) bool {
 	var r io.Reader
 	name := src
 
@@ -70,7 +98,7 @@ func processSource(src string, stdout, stderr io.Writer) bool {
 			continue
 		}
 
-		if errs := Validate(rec); len(errs) > 0 {
+		if errs := Validate(rec, required); len(errs) > 0 {
 			for _, verr := range errs {
 				fmt.Fprintf(stderr, "%s:%d: %v\n", name, lineNo, verr)
 			}

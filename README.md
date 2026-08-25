@@ -57,11 +57,18 @@ validation (a key repeated within the same line) are reported to stderr
 with the source name and line number, and the process exits with status 1
 if anything in the run failed.
 
+Require certain fields to be present with `-require`:
+
+```
+./logfmt-lint -require=level,msg app.log
+```
+
+A line missing any of the listed keys is reported the same way as a
+duplicate-key error, with the missing key named.
+
 ## Status
 
-Early. Parsing and validation currently cover syntax only — there's no way
-yet to require that specific fields such as `level` or `msg` be present.
-Read the source for the exact rules; it's short.
+Early. Read the source for the exact rules; it's short.
 
 ## License
 
