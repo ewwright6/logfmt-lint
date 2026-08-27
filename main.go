@@ -20,6 +20,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("logfmt-lint", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	requireFlag := fs.String("require", "", "comma-separated list of keys that must be present in every line, e.g. level,msg")
+	jsonFlag := fs.Bool("json", false, "print each well-formed line as a JSON object instead of the aligned text form")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -33,7 +34,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	hadError := false
 	for _, src := range sources {
-		if processSource(src, required, stdout, stderr) {
+		if processSource(src, required, *jsonFlag, stdout, stderr) {
 			hadError = true
 		}
 	}
@@ -62,7 +63,7 @@ func splitRequired(s string) []string {
 
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
-func processSource(src string, required []string, stdout, stderr io.Writer) bool {
+func processSource(src string, required []string, jsonOut bool, stdout, stderr io.Writer) bool {
 	var r io.Reader
 	name := src
 
@@ -106,6 +107,13 @@ func processSource(src string, required []string, stdout, stderr io.Writer) bool
 			continue
 		}
 
+		if jsonOut {
+			if err := PrintRecordJSON(stdout, name, lineNo, rec); err != nil {
+				fmt.Fprintf(stderr, "%s:%d: %v\n", name, lineNo, err)
+				hadError = true
+			}
+			continue
+		}
 		PrintRecord(stdout, name, lineNo, rec)
 	}
 

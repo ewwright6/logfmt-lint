@@ -66,6 +66,17 @@ Require certain fields to be present with `-require`:
 A line missing any of the listed keys is reported the same way as a
 duplicate-key error, with the missing key named.
 
+Print JSON instead of the aligned text form with `-json`, one JSON object
+per line:
+
+```
+./logfmt-lint -json app.log
+```
+
+```
+{"source":"app.log","line":1,"fields":{"host":"db-1","level":"error","msg":"connection refused","retries":"3","ts":"2026-08-24T10:03:12Z"}}
+```
+
 ## Status
 
 Early. Read the source for the exact rules; it's short.
