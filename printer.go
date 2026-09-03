@@ -6,11 +6,23 @@ import (
 	"io"
 )
 
+const (
+	ansiReset = "\033[0m"
+	ansiBold  = "\033[1m"
+	ansiCyan  = "\033[36m"
+)
+
 // PrintRecord writes rec in an aligned, human-readable form to w, labeled
 // with its source and line number so the reader can find it in the
-// original file (or stdin stream) it came from.
-func PrintRecord(w io.Writer, source string, lineNo int, rec Record) {
-	fmt.Fprintf(w, "%s:%d\n", source, lineNo)
+// original file (or stdin stream) it came from. When color is true, the
+// header and field keys are wrapped in ANSI escape codes; callers should
+// only set it when w is known to be a terminal.
+func PrintRecord(w io.Writer, source string, lineNo int, rec Record, color bool) {
+	if color {
+		fmt.Fprintf(w, "%s%s:%d%s\n", ansiBold, source, lineNo, ansiReset)
+	} else {
+		fmt.Fprintf(w, "%s:%d\n", source, lineNo)
+	}
 	if len(rec.Fields) == 0 {
 		fmt.Fprintln(w, "  (no fields)")
 		return
@@ -24,7 +36,11 @@ func PrintRecord(w io.Writer, source string, lineNo int, rec Record) {
 	}
 
 	for _, f := range rec.Fields {
-		fmt.Fprintf(w, "  %-*s = %s\n", width, f.Key, f.Value)
+		if color {
+			fmt.Fprintf(w, "  %s%-*s%s = %s\n", ansiCyan, width, f.Key, ansiReset, f.Value)
+		} else {
+			fmt.Fprintf(w, "  %-*s = %s\n", width, f.Key, f.Value)
+		}
 	}
 }
 

@@ -32,9 +32,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		sources = []string{"-"}
 	}
 
+	color := !*jsonFlag && os.Getenv("NO_COLOR") == "" && isTerminal(stdout)
+
 	hadError := false
 	for _, src := range sources {
-		if processSource(src, required, *jsonFlag, stdout, stderr) {
+		if processSource(src, required, *jsonFlag, color, stdout, stderr) {
 			hadError = true
 		}
 	}
@@ -61,9 +63,25 @@ func splitRequired(s string) []string {
 	return keys
 }
 
+// isTerminal reports whether w is a character device such as a terminal,
+// which is the case PrintRecord's ANSI colors are meant for. Piping or
+// redirecting stdout swaps in a plain file or pipe, so this also serves
+// as the check that keeps escape codes out of redirected output.
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
-func processSource(src string, required []string, jsonOut bool, stdout, stderr io.Writer) bool {
+func processSource(src string, required []string, jsonOut, color bool, stdout, stderr io.Writer) bool {
 	var r io.Reader
 	name := src
 
@@ -114,7 +132,7 @@ func processSource(src string, required []string, jsonOut bool, stdout, stderr i
 			}
 			continue
 		}
-		PrintRecord(stdout, name, lineNo, rec)
+		PrintRecord(stdout, name, lineNo, rec, color)
 	}
 
 	if err := scanner.Err(); err != nil {

@@ -66,6 +66,11 @@ Require certain fields to be present with `-require`:
 A line missing any of the listed keys is reported the same way as a
 duplicate-key error, with the missing key named.
 
+When stdout is a terminal, the header and field keys are printed in color.
+Piping or redirecting output turns this off automatically, and setting
+`NO_COLOR` (to any non-empty value) turns it off regardless of where
+output is going.
+
 Print JSON instead of the aligned text form with `-json`, one JSON object
 per line:
 
