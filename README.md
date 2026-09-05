@@ -82,6 +82,15 @@ per line:
 {"source":"app.log","line":1,"fields":{"host":"db-1","level":"error","msg":"connection refused","retries":"3","ts":"2026-08-24T10:03:12Z"}}
 ```
 
+Gzip-compressed input is decompressed automatically, whether it's a file
+or piped in over stdin — detection is by magic number, not filename, so
+a `.gz` extension isn't required:
+
+```
+./logfmt-lint app.log.gz
+zcat app.log.gz | ./logfmt-lint
+```
+
 ## Status
 
 Early. Read the source for the exact rules; it's short.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
@@ -79,6 +80,20 @@ func isTerminal(w io.Writer) bool {
 	return info.Mode()&os.ModeCharDevice != 0
 }
 
+// isGzip reports whether r starts with the gzip magic number, without
+// consuming any bytes, so files and stdin alike can be transparently
+// decompressed regardless of their name.
+func isGzip(r *bufio.Reader) (bool, error) {
+	header, err := r.Peek(2)
+	if err != nil {
+		if err == io.EOF {
+			return false, nil
+		}
+		return false, err
+	}
+	return header[0] == 0x1f && header[1] == 0x8b, nil
+}
+
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
 func processSource(src string, required []string, jsonOut, color bool, stdout, stderr io.Writer) bool {
@@ -96,6 +111,22 @@ func processSource(src string, required []string, jsonOut, color bool, stdout, s
 		}
 		defer f.Close()
 		r = f
+	}
+
+	br := bufio.NewReader(r)
+	if gz, err := isGzip(br); err != nil {
+		fmt.Fprintf(stderr, "%s: %v\n", name, err)
+		return true
+	} else if gz {
+		zr, err := gzip.NewReader(br)
+		if err != nil {
+			fmt.Fprintf(stderr, "%s: %v\n", name, err)
+			return true
+		}
+		defer zr.Close()
+		r = zr
+	} else {
+		r = br
 	}
 
 	hadError := false
