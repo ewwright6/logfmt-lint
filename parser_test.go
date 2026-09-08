@@ -19,7 +19,7 @@ func TestParseLineFields(t *testing.T) {
 		{
 			name: "bare key gets empty value",
 			line: "level=error debug",
-			want: []Field{{Key: "level", Value: "error"}, {Key: "debug", Value: ""}},
+			want: []Field{{Key: "level", Value: "error"}, {Key: "debug", Value: "", Bare: true}},
 		},
 		{
 			name: "quoted value with spaces",
@@ -113,7 +113,7 @@ func TestValidateDuplicateKeys(t *testing.T) {
 		{Key: "level", Value: "warn"},
 	}}
 
-	errs := Validate(rec, nil)
+	errs := Validate(rec, nil, false)
 	if len(errs) != 1 {
 		t.Fatalf("Validate() returned %d errors, want 1: %v", len(errs), errs)
 	}
@@ -128,7 +128,7 @@ func TestValidateRequiredKeys(t *testing.T) {
 		{Key: "level", Value: "error"},
 	}}
 
-	errs := Validate(rec, []string{"level", "msg"})
+	errs := Validate(rec, []string{"level", "msg"}, false)
 	if len(errs) != 1 {
 		t.Fatalf("Validate() returned %d errors, want 1: %v", len(errs), errs)
 	}
@@ -140,7 +140,37 @@ func TestValidateRequiredKeys(t *testing.T) {
 
 func TestValidateNoRequiredKeys(t *testing.T) {
 	rec := Record{Fields: []Field{{Key: "level", Value: "error"}}}
-	if errs := Validate(rec, nil); errs != nil {
+	if errs := Validate(rec, nil, false); errs != nil {
+		t.Errorf("Validate() = %v, want no errors", errs)
+	}
+}
+
+func TestValidateStrictRejectsBareKeys(t *testing.T) {
+	rec := Record{Fields: []Field{
+		{Key: "level", Value: "error"},
+		{Key: "debug", Value: "", Bare: true},
+	}}
+
+	errs := Validate(rec, nil, true)
+	if len(errs) != 1 {
+		t.Fatalf("Validate() returned %d errors, want 1: %v", len(errs), errs)
+	}
+	want := `bare key "debug" has no value`
+	if errs[0].Error() != want {
+		t.Errorf("Validate() error = %q, want %q", errs[0].Error(), want)
+	}
+}
+
+func TestValidateStrictAllowsExplicitEmptyValue(t *testing.T) {
+	rec := Record{Fields: []Field{{Key: "a", Value: "", Bare: false}}}
+	if errs := Validate(rec, nil, true); errs != nil {
+		t.Errorf("Validate() = %v, want no errors", errs)
+	}
+}
+
+func TestValidateNonStrictAllowsBareKeys(t *testing.T) {
+	rec := Record{Fields: []Field{{Key: "debug", Value: "", Bare: true}}}
+	if errs := Validate(rec, nil, false); errs != nil {
 		t.Errorf("Validate() = %v, want no errors", errs)
 	}
 }

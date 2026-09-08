@@ -66,6 +66,16 @@ Require certain fields to be present with `-require`:
 A line missing any of the listed keys is reported the same way as a
 duplicate-key error, with the missing key named.
 
+Some logfmt producers write bare keys — a token with no `=` at all, like
+`debug` in `level=error debug` — which this tool normally accepts as a
+key with an empty value. Reject them instead with `-strict`:
+
+```
+./logfmt-lint -strict app.log
+```
+
+A bare key is reported the same way as a duplicate-key error.
+
 When stdout is a terminal, the header and field keys are printed in color.
 Piping or redirecting output turns this off automatically, and setting
 `NO_COLOR` (to any non-empty value) turns it off regardless of where

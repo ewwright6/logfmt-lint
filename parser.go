@@ -9,6 +9,9 @@ import (
 type Field struct {
 	Key   string
 	Value string
+	// Bare is true when the key appeared with no "=" at all, as opposed
+	// to "key=" with an explicit empty value. -strict rejects these.
+	Bare bool
 }
 
 // Record is one parsed line: its raw text and the fields found in it.
@@ -56,7 +59,7 @@ func ParseLine(line string) (Record, error) {
 		}
 
 		if i >= n || line[i] != '=' {
-			rec.Fields = append(rec.Fields, Field{Key: key, Value: ""})
+			rec.Fields = append(rec.Fields, Field{Key: key, Value: "", Bare: true})
 			continue
 		}
 		i++ // consume '='
@@ -104,10 +107,11 @@ func parseQuoted(line string, start int) (string, int, error) {
 }
 
 // Validate checks a parsed record for problems that aren't syntax errors
-// on their own: a key appearing more than once, or one of required
-// missing entirely. required may be nil or empty, in which case only the
-// duplicate-key check runs.
-func Validate(rec Record, required []string) []error {
+// on their own: a key appearing more than once, one of required missing
+// entirely, or (when strict is true) a bare key with no "=". required may
+// be nil or empty, in which case only the duplicate-key and strict checks
+// run.
+func Validate(rec Record, required []string, strict bool) []error {
 	seen := make(map[string]bool, len(rec.Fields))
 	var errs []error
 	for _, f := range rec.Fields {
@@ -116,6 +120,9 @@ func Validate(rec Record, required []string) []error {
 			continue
 		}
 		seen[f.Key] = true
+		if strict && f.Bare {
+			errs = append(errs, fmt.Errorf("bare key %q has no value", f.Key))
+		}
 	}
 
 	for _, key := range required {
