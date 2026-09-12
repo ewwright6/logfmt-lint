@@ -66,6 +66,19 @@ Require certain fields to be present with `-require`:
 A line missing any of the listed keys is reported the same way as a
 duplicate-key error, with the missing key named.
 
+A source can mix line shapes that don't share one schema — an access log
+next to error lines, say. Pass `-require` more than once to give each
+shape its own set of required keys; a line only has to satisfy one of the
+sets:
+
+```
+./logfmt-lint -require=level,msg -require=method,path,status app.log
+```
+
+A line that matches none of the sets is reported against whichever set
+it came closest to, so the missing-key error still points somewhere
+useful.
+
 Some logfmt producers write bare keys — a token with no `=` at all, like
 `debug` in `level=error debug` — which this tool normally accepts as a
 key with an empty value. Reject them instead with `-strict`:

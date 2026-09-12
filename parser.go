@@ -107,11 +107,18 @@ func parseQuoted(line string, start int) (string, int, error) {
 }
 
 // Validate checks a parsed record for problems that aren't syntax errors
-// on their own: a key appearing more than once, one of required missing
-// entirely, or (when strict is true) a bare key with no "=". required may
-// be nil or empty, in which case only the duplicate-key and strict checks
-// run.
-func Validate(rec Record, required []string, strict bool) []error {
+// on their own: a key appearing more than once, none of requiredSets
+// fully satisfied, or (when strict is true) a bare key with no "=".
+//
+// requiredSets holds one or more alternative sets of required keys, since
+// a single source can mix line shapes (a request log and an error log,
+// say) that don't share one schema. A line passes the required-key check
+// if it satisfies any one set in full; requiredSets may be nil or empty,
+// in which case that check is skipped entirely. When no set is fully
+// satisfied, the reported missing keys are from whichever set came
+// closest, so the error points at the schema the line most likely meant
+// to match.
+func Validate(rec Record, requiredSets [][]string, strict bool) []error {
 	seen := make(map[string]bool, len(rec.Fields))
 	var errs []error
 	for _, f := range rec.Fields {
@@ -125,9 +132,28 @@ func Validate(rec Record, required []string, strict bool) []error {
 		}
 	}
 
-	for _, key := range required {
-		if !seen[key] {
-			errs = append(errs, fmt.Errorf("missing required key %q", key))
+	if len(requiredSets) > 0 {
+		var bestMissing []string
+		satisfied := false
+		for _, set := range requiredSets {
+			var missing []string
+			for _, key := range set {
+				if !seen[key] {
+					missing = append(missing, key)
+				}
+			}
+			if len(missing) == 0 {
+				satisfied = true
+				break
+			}
+			if bestMissing == nil || len(missing) < len(bestMissing) {
+				bestMissing = missing
+			}
+		}
+		if !satisfied {
+			for _, key := range bestMissing {
+				errs = append(errs, fmt.Errorf("missing required key %q", key))
+			}
 		}
 	}
 

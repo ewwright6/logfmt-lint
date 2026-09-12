@@ -128,7 +128,38 @@ func TestValidateRequiredKeys(t *testing.T) {
 		{Key: "level", Value: "error"},
 	}}
 
-	errs := Validate(rec, []string{"level", "msg"}, false)
+	errs := Validate(rec, [][]string{{"level", "msg"}}, false)
+	if len(errs) != 1 {
+		t.Fatalf("Validate() returned %d errors, want 1: %v", len(errs), errs)
+	}
+	want := `missing required key "msg"`
+	if errs[0].Error() != want {
+		t.Errorf("Validate() error = %q, want %q", errs[0].Error(), want)
+	}
+}
+
+func TestValidateRequiredKeySetsSatisfiesEither(t *testing.T) {
+	rec := Record{Fields: []Field{
+		{Key: "method", Value: "GET"},
+		{Key: "path", Value: "/health"},
+		{Key: "status", Value: "200"},
+	}}
+
+	sets := [][]string{{"level", "msg"}, {"method", "path", "status"}}
+	if errs := Validate(rec, sets, false); errs != nil {
+		t.Errorf("Validate() = %v, want no errors (record satisfies the second set)", errs)
+	}
+}
+
+func TestValidateRequiredKeySetsReportsClosestMatch(t *testing.T) {
+	rec := Record{Fields: []Field{
+		{Key: "level", Value: "error"},
+	}}
+
+	// "level" alone is one key short of the first set and two short of
+	// the second, so the error should name only "msg".
+	sets := [][]string{{"level", "msg"}, {"method", "path", "status"}}
+	errs := Validate(rec, sets, false)
 	if len(errs) != 1 {
 		t.Fatalf("Validate() returned %d errors, want 1: %v", len(errs), errs)
 	}

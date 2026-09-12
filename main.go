@@ -20,14 +20,13 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("logfmt-lint", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	requireFlag := fs.String("require", "", "comma-separated list of keys that must be present in every line, e.g. level,msg")
+	var required requireSets
+	fs.Var(&required, "require", "comma-separated list of keys that must be present in every line, e.g. level,msg. May be given more than once to accept alternative sets of required keys, for sources that mix line shapes.")
 	jsonFlag := fs.Bool("json", false, "print each well-formed line as a JSON object instead of the aligned text form")
 	strictFlag := fs.Bool("strict", false, "fail on bare keys (a key with no \"=\" and no value)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-
-	required := splitRequired(*requireFlag)
 
 	sources := fs.Args()
 	if len(sources) == 0 {
@@ -65,6 +64,30 @@ func splitRequired(s string) []string {
 	return keys
 }
 
+// requireSets collects one or more comma-separated -require values, one
+// per flag occurrence, into alternative sets of required keys. It
+// implements flag.Value so that -require can be repeated on the command
+// line instead of only accepting one comma-separated list.
+type requireSets [][]string
+
+func (r *requireSets) String() string {
+	if r == nil || len(*r) == 0 {
+		return ""
+	}
+	parts := make([]string, len(*r))
+	for i, set := range *r {
+		parts[i] = strings.Join(set, ",")
+	}
+	return strings.Join(parts, " ")
+}
+
+func (r *requireSets) Set(value string) error {
+	if keys := splitRequired(value); len(keys) > 0 {
+		*r = append(*r, keys)
+	}
+	return nil
+}
+
 // isTerminal reports whether w is a character device such as a terminal,
 // which is the case PrintRecord's ANSI colors are meant for. Piping or
 // redirecting stdout swaps in a plain file or pipe, so this also serves
@@ -97,7 +120,7 @@ func isGzip(r *bufio.Reader) (bool, error) {
 
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
-func processSource(src string, required []string, jsonOut, strict, color bool, stdout, stderr io.Writer) bool {
+func processSource(src string, required [][]string, jsonOut, strict, color bool, stdout, stderr io.Writer) bool {
 	var r io.Reader
 	name := src
 
