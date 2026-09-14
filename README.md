@@ -114,6 +114,14 @@ a `.gz` extension isn't required:
 zcat app.log.gz | ./logfmt-lint
 ```
 
+Suppress output for well-formed lines with `-quiet`, useful when you only
+care about the exit status and any errors on stderr — checking a log file
+in a pre-deploy script, say:
+
+```
+./logfmt-lint -quiet app.log
+```
+
 ## Status
 
 Early. Read the source for the exact rules; it's short.
