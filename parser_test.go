@@ -66,6 +66,52 @@ func TestParseLineFields(t *testing.T) {
 	}
 }
 
+func TestParseLineWithSeparator(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		sep  byte
+		want []Field
+	}{
+		{
+			name: "comma separated",
+			line: "level=error,msg=boom,retries=3",
+			sep:  ',',
+			want: []Field{{Key: "level", Value: "error"}, {Key: "msg", Value: "boom"}, {Key: "retries", Value: "3"}},
+		},
+		{
+			name: "tab separated",
+			line: "level=error\tmsg=boom",
+			sep:  '\t',
+			want: []Field{{Key: "level", Value: "error"}, {Key: "msg", Value: "boom"}},
+		},
+		{
+			name: "quoted value may contain the separator",
+			line: `level=error,msg="boom, again",retries=3`,
+			sep:  ',',
+			want: []Field{{Key: "level", Value: "error"}, {Key: "msg", Value: "boom, again"}, {Key: "retries", Value: "3"}},
+		},
+		{
+			name: "spaces are ordinary value characters under a non-space separator",
+			line: "msg=connection refused,level=error",
+			sep:  ',',
+			want: []Field{{Key: "msg", Value: "connection refused"}, {Key: "level", Value: "error"}},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec, err := ParseLineWithSeparator(c.line, c.sep)
+			if err != nil {
+				t.Fatalf("ParseLineWithSeparator(%q, %q) returned error: %v", c.line, c.sep, err)
+			}
+			if !reflect.DeepEqual(rec.Fields, c.want) {
+				t.Errorf("ParseLineWithSeparator(%q, %q) = %#v, want %#v", c.line, c.sep, rec.Fields, c.want)
+			}
+		})
+	}
+}
+
 func TestParseLineErrors(t *testing.T) {
 	cases := []struct {
 		name       string

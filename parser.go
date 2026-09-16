@@ -37,12 +37,20 @@ func (e *ParseError) Error() string {
 // Bare tokens without "=" are kept as keys with an empty value, matching
 // the convention used by logrus and Heroku's router output.
 func ParseLine(line string) (Record, error) {
+	return ParseLineWithSeparator(line, ' ')
+}
+
+// ParseLineWithSeparator parses a single logfmt-style line the same way as
+// ParseLine, but using sep as the delimiter between key=value pairs
+// instead of a space. This accommodates producers that write logfmt with
+// commas, tabs, or some other character between fields.
+func ParseLineWithSeparator(line string, sep byte) (Record, error) {
 	rec := Record{Raw: line}
 	i := 0
 	n := len(line)
 
 	for i < n {
-		for i < n && line[i] == ' ' {
+		for i < n && line[i] == sep {
 			i++
 		}
 		if i >= n {
@@ -50,7 +58,7 @@ func ParseLine(line string) (Record, error) {
 		}
 
 		keyStart := i
-		for i < n && line[i] != '=' && line[i] != ' ' {
+		for i < n && line[i] != '=' && line[i] != sep {
 			i++
 		}
 		key := line[keyStart:i]
@@ -75,7 +83,7 @@ func ParseLine(line string) (Record, error) {
 		}
 
 		valStart := i
-		for i < n && line[i] != ' ' {
+		for i < n && line[i] != sep {
 			i++
 		}
 		rec.Fields = append(rec.Fields, Field{Key: key, Value: line[valStart:i]})

@@ -122,6 +122,17 @@ in a pre-deploy script, say:
 ./logfmt-lint -quiet app.log
 ```
 
+Not every logfmt producer separates fields with a space. Pass `-sep` to
+use a different single character, such as a comma:
+
+```
+./logfmt-lint -sep=, app.log
+```
+
+Tab-separated input can be selected with `-sep='\t'`, since a raw tab is
+awkward to type on a command line. Whatever separator is in effect, a
+quoted value may still contain that character without ending the field.
+
 ## Status
 
 Early. Read the source for the exact rules; it's short.

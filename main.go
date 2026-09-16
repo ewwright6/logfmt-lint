@@ -25,7 +25,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	jsonFlag := fs.Bool("json", false, "print each well-formed line as a JSON object instead of the aligned text form")
 	strictFlag := fs.Bool("strict", false, "fail on bare keys (a key with no \"=\" and no value)")
 	quietFlag := fs.Bool("quiet", false, "don't print well-formed lines, only errors")
+	sepFlag := fs.String("sep", " ", "character separating key=value pairs (default space); use \\t for tab")
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	sep, err := parseSeparator(*sepFlag)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 2
 	}
 
@@ -38,7 +45,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	hadError := false
 	for _, src := range sources {
-		if processSource(src, required, *jsonFlag, *strictFlag, *quietFlag, color, stdout, stderr) {
+		if processSource(src, required, sep, *jsonFlag, *strictFlag, *quietFlag, color, stdout, stderr) {
 			hadError = true
 		}
 	}
@@ -89,6 +96,22 @@ func (r *requireSets) Set(value string) error {
 	return nil
 }
 
+// parseSeparator turns a -sep flag value into the single byte it names.
+// "\t" is accepted literally since a shell can't easily pass a raw tab as
+// a command-line argument; anything else must be exactly one character.
+func parseSeparator(s string) (byte, error) {
+	if s == `\t` {
+		s = "\t"
+	}
+	if len(s) != 1 {
+		return 0, fmt.Errorf("-sep must be a single character, got %q", s)
+	}
+	if s[0] == '=' {
+		return 0, fmt.Errorf("-sep cannot be \"=\", it would collide with the key=value separator")
+	}
+	return s[0], nil
+}
+
 // isTerminal reports whether w is a character device such as a terminal,
 // which is the case PrintRecord's ANSI colors are meant for. Piping or
 // redirecting stdout swaps in a plain file or pipe, so this also serves
@@ -121,7 +144,7 @@ func isGzip(r *bufio.Reader) (bool, error) {
 
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
-func processSource(src string, required [][]string, jsonOut, strict, quiet, color bool, stdout, stderr io.Writer) bool {
+func processSource(src string, required [][]string, sep byte, jsonOut, strict, quiet, color bool, stdout, stderr io.Writer) bool {
 	var r io.Reader
 	name := src
 
@@ -166,7 +189,7 @@ func processSource(src string, required [][]string, jsonOut, strict, quiet, colo
 			continue
 		}
 
-		rec, err := ParseLine(line)
+		rec, err := ParseLineWithSeparator(line, sep)
 		if err != nil {
 			fmt.Fprintf(stderr, "%s:%d: %v\n", name, lineNo, err)
 			hadError = true
