@@ -133,6 +133,16 @@ Tab-separated input can be selected with `-sep='\t'`, since a raw tab is
 awkward to type on a command line. Whatever separator is in effect, a
 quoted value may still contain that character without ending the field.
 
+Values are quoted with a double quote by default. Pass `-quote` to use a
+different single character instead, for producers that quote with
+something else, such as a backtick:
+
+```
+./logfmt-lint -quote='`' app.log
+```
+
+`-quote` and `-sep` must not be the same character.
+
 ## Status
 
 Early. Read the source for the exact rules; it's short.

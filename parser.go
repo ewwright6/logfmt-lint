@@ -37,7 +37,7 @@ func (e *ParseError) Error() string {
 // Bare tokens without "=" are kept as keys with an empty value, matching
 // the convention used by logrus and Heroku's router output.
 func ParseLine(line string) (Record, error) {
-	return ParseLineWithSeparator(line, ' ')
+	return ParseLineWithOptions(line, ' ', '"')
 }
 
 // ParseLineWithSeparator parses a single logfmt-style line the same way as
@@ -45,6 +45,15 @@ func ParseLine(line string) (Record, error) {
 // instead of a space. This accommodates producers that write logfmt with
 // commas, tabs, or some other character between fields.
 func ParseLineWithSeparator(line string, sep byte) (Record, error) {
+	return ParseLineWithOptions(line, sep, '"')
+}
+
+// ParseLineWithOptions parses a single logfmt-style line the same way as
+// ParseLine, but using sep as the field delimiter and quote as the
+// character that wraps a value containing sep or other special
+// characters. This accommodates producers that quote values with
+// something other than a double quote, such as a backtick.
+func ParseLineWithOptions(line string, sep, quote byte) (Record, error) {
 	rec := Record{Raw: line}
 	i := 0
 	n := len(line)
@@ -72,8 +81,8 @@ func ParseLineWithSeparator(line string, sep byte) (Record, error) {
 		}
 		i++ // consume '='
 
-		if i < n && line[i] == '"' {
-			value, next, err := parseQuoted(line, i)
+		if i < n && line[i] == quote {
+			value, next, err := parseQuoted(line, i, quote)
 			if err != nil {
 				return rec, err
 			}
@@ -92,20 +101,22 @@ func ParseLineWithSeparator(line string, sep byte) (Record, error) {
 	return rec, nil
 }
 
-// parseQuoted reads a double-quoted value starting at line[start] == '"'.
-// It returns the unescaped value and the index just past the closing quote.
-func parseQuoted(line string, start int) (string, int, error) {
+// parseQuoted reads a value wrapped in quote, starting at line[start] ==
+// quote. It returns the unescaped value and the index just past the
+// closing quote. A backslash escapes either the quote character itself or
+// another backslash; nothing else can be escaped.
+func parseQuoted(line string, start int, quote byte) (string, int, error) {
 	var b strings.Builder
 	i := start + 1
 	n := len(line)
 	for i < n {
 		c := line[i]
-		if c == '\\' && i+1 < n && (line[i+1] == '"' || line[i+1] == '\\') {
+		if c == '\\' && i+1 < n && (line[i+1] == quote || line[i+1] == '\\') {
 			b.WriteByte(line[i+1])
 			i += 2
 			continue
 		}
-		if c == '"' {
+		if c == quote {
 			return b.String(), i + 1, nil
 		}
 		b.WriteByte(c)

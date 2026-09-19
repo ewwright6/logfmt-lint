@@ -112,6 +112,56 @@ func TestParseLineWithSeparator(t *testing.T) {
 	}
 }
 
+func TestParseLineWithOptionsCustomQuote(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		want []Field
+	}{
+		{
+			name: "backtick quoted value with a comma inside",
+			line: "level=error,msg=`boom, again`,retries=3",
+			want: []Field{{Key: "level", Value: "error"}, {Key: "msg", Value: "boom, again"}, {Key: "retries", Value: "3"}},
+		},
+		{
+			name: "escaped backtick and backslash inside a backtick quoted value",
+			line: "msg=`say \\`hi\\` then C:\\\\path`",
+			want: []Field{{Key: "msg", Value: "say `hi` then C:\\path"}},
+		},
+		{
+			name: "double quote is an ordinary value character when the quote char is a backtick",
+			line: `msg="not quoted",level=error`,
+			want: []Field{{Key: "msg", Value: `"not quoted"`}, {Key: "level", Value: "error"}},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec, err := ParseLineWithOptions(c.line, ',', '`')
+			if err != nil {
+				t.Fatalf("ParseLineWithOptions(%q) returned error: %v", c.line, err)
+			}
+			if !reflect.DeepEqual(rec.Fields, c.want) {
+				t.Errorf("ParseLineWithOptions(%q) = %#v, want %#v", c.line, rec.Fields, c.want)
+			}
+		})
+	}
+}
+
+func TestParseLineWithOptionsUnterminatedCustomQuote(t *testing.T) {
+	_, err := ParseLineWithOptions("msg=`never closed", ' ', '`')
+	if err == nil {
+		t.Fatal("ParseLineWithOptions() returned no error, want one")
+	}
+	perr, ok := err.(*ParseError)
+	if !ok {
+		t.Fatalf("ParseLineWithOptions() returned %T, want *ParseError", err)
+	}
+	if perr.Column != 5 {
+		t.Errorf("ParseLineWithOptions() column = %d, want 5", perr.Column)
+	}
+}
+
 func TestParseLineErrors(t *testing.T) {
 	cases := []struct {
 		name       string
