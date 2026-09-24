@@ -25,6 +25,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	jsonFlag := fs.Bool("json", false, "print each well-formed line as a JSON object instead of the aligned text form")
 	strictFlag := fs.Bool("strict", false, "fail on bare keys (a key with no \"=\" and no value)")
 	quietFlag := fs.Bool("quiet", false, "don't print well-formed lines, only errors")
+	sortFlag := fs.Bool("sort", false, "print fields in alphabetical key order instead of the order they appeared in")
 	sepFlag := fs.String("sep", " ", "character separating key=value pairs (default space); use \\t for tab")
 	quoteFlag := fs.String("quote", `"`, "character used to quote a value containing the separator (default \")")
 	if err := fs.Parse(args); err != nil {
@@ -56,7 +57,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	hadError := false
 	for _, src := range sources {
-		if processSource(src, required, sep, quote, *jsonFlag, *strictFlag, *quietFlag, color, stdout, stderr) {
+		if processSource(src, required, sep, quote, *jsonFlag, *strictFlag, *quietFlag, *sortFlag, color, stdout, stderr) {
 			hadError = true
 		}
 	}
@@ -166,7 +167,7 @@ func isGzip(r *bufio.Reader) (bool, error) {
 
 // processSource reads one file (or stdin, for "-") a line at a time and
 // returns true if any line failed to parse or validate.
-func processSource(src string, required [][]string, sep, quote byte, jsonOut, strict, quiet, color bool, stdout, stderr io.Writer) bool {
+func processSource(src string, required [][]string, sep, quote byte, jsonOut, strict, quiet, sortFields, color bool, stdout, stderr io.Writer) bool {
 	var r io.Reader
 	name := src
 
@@ -228,6 +229,10 @@ func processSource(src string, required [][]string, sep, quote byte, jsonOut, st
 
 		if quiet {
 			continue
+		}
+
+		if sortFields {
+			SortFields(rec.Fields)
 		}
 
 		if jsonOut {

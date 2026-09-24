@@ -143,6 +143,24 @@ something else, such as a backtick:
 
 `-quote` and `-sep` must not be the same character.
 
+Fields are normally printed in the order they appeared in the line. Pass
+`-sort` to print them in alphabetical key order instead, which makes it
+easier to compare two lines that carry the same fields in a different
+order:
+
+```
+./logfmt-lint -sort app.log
+```
+
+```
+stdin:1
+  host    = db-1
+  level   = error
+  msg     = connection refused
+  retries = 3
+  ts      = 2026-08-24T10:03:12Z
+```
+
 ## Status
 
 Early. Read the source for the exact rules; it's short.

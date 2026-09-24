@@ -301,3 +301,29 @@ func TestValidateNonStrictAllowsBareKeys(t *testing.T) {
 		t.Errorf("Validate() = %v, want no errors", errs)
 	}
 }
+
+func TestSortFields(t *testing.T) {
+	fields := []Field{
+		{Key: "retries", Value: "3"},
+		{Key: "level", Value: "error"},
+		{Key: "msg", Value: "boom"},
+	}
+	SortFields(fields)
+
+	want := []Field{
+		{Key: "level", Value: "error"},
+		{Key: "msg", Value: "boom"},
+		{Key: "retries", Value: "3"},
+	}
+	if !reflect.DeepEqual(fields, want) {
+		t.Errorf("SortFields() = %v, want %v", fields, want)
+	}
+}
+
+func TestSortFieldsEmpty(t *testing.T) {
+	var fields []Field
+	SortFields(fields)
+	if len(fields) != 0 {
+		t.Errorf("SortFields() on empty slice = %v, want empty", fields)
+	}
+}

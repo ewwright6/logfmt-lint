@@ -183,6 +183,27 @@ func TestParseSeparator(t *testing.T) {
 	}
 }
 
+func TestRunSortOrdersFieldsAlphabetically(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/app.log"
+	if err := os.WriteFile(path, []byte("retries=3 level=error msg=boom\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"-sort", path}, &stdout, &stderr)
+
+	if code != 0 {
+		t.Fatalf("run() = %d, want 0; stderr: %s", code, stderr.String())
+	}
+	levelIdx := strings.Index(stdout.String(), "level")
+	msgIdx := strings.Index(stdout.String(), "msg")
+	retriesIdx := strings.Index(stdout.String(), "retries")
+	if !(levelIdx < msgIdx && msgIdx < retriesIdx) {
+		t.Errorf("stdout = %q, want fields in alphabetical order (level, msg, retries)", stdout.String())
+	}
+}
+
 func TestRunWithoutQuietPrintsWellFormedLines(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/app.log"

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -123,6 +124,15 @@ func parseQuoted(line string, start int, quote byte) (string, int, error) {
 		i++
 	}
 	return "", i, &ParseError{Column: start + 1, Message: "unterminated quoted value"}
+}
+
+// SortFields reorders fields in place by key, ascending. Validate has
+// already run by the time this is called, so keys are guaranteed unique
+// and there's no tie to break.
+func SortFields(fields []Field) {
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Key < fields[j].Key
+	})
 }
 
 // Validate checks a parsed record for problems that aren't syntax errors
